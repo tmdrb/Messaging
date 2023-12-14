@@ -72,7 +72,70 @@ headers -> 라우팅 큐를 사용하지 않고 header 를 사용해서 라우�
 
   ***************
 
-### Bindings   
+### Acknowledgements
+
+비동기 메시징 시스템에서는 메시지가 피어에 정상적으로 도달했는지 잘 처리 되었는지에 대한 확신이 없음   
+
+따라서 이것을 보완하기 위한 승인 메카니즘을 사용
+
+- 소비자로 부터의 승인   
+   consume 를 사용해서 소비자를 등록했을 경우 or get 메소드를 사용해서 메시지를 가져 온 경우
+
+   - auto
+  
+        fire and forget 이라 불리며 전송 된 즉시 배송에 성공했다고 고려
+        
+        완벽하게 보내지기전에 connection 이 종료 될 수도 있어서 안전하지는 못함
+        
+        처리되지 못한 메시지에 대한 제한이 없어서 memory 오류 발생 할 가능성이 있음
+        
+        안정적으로 처리 할 수 있는 consumer 에게만 추천   
+ 
+   - manual
+     
+     ack, nack 응답 메시지로 판단   
+     
+     ack 가 온 경우 정상적으로 받았다고 판단, deliveryTag 를 multi 로 처리 가능
+     
+     nack 전송한 경우 메시지가 버려지거나 다시 큐에 들어가거나 Dead Letter Exchange 에 들어가거나 선택 ( Dead Letter Exchage 가 구성 안되어 있으면 버린다 )
+     
+     메시지가 다시 큐에 적재된 경우 원래 position 으로 위치
+     
+     prefetch 카운트를 설정하여 바로 응답할 건지 대기 할 건지 선택
+     
+     qos = 0 이면 limit 제한 없음, qos = 1 이면 delivery_tag 5,6,7,8 을 보냈을 때 승인 응답이 하나라도 와야 다시 메시지 전송
+
+
+  consumer 에서 승인을 해서 서버로 보냈다고 하더라도 서버에서 확실하게 받아서 처리했다는 보장이 없을 수 있음.
+
+  그래서 이걸 보장하기 위한 방법으로 transaction 을 사용하면 되는데 너무 무겁고 처리량이 250배 가량 떨어진다.
+
+  no-wait 옵션을 사용해서 client 가 select 함수를 전송하면 broker 는 select-ok 라는 응답을 줌
+
+  channel 이 confirm mode 로 되어 있으면 broker 에서도 client 와 마찬가지로 count 한다
+
+  같은 channel 에서 broker 는 basic.ack 를 전송해서 메시지를 확인
+
+  delivery-tag, multiple 옵션 사용   
+
+
+********************
+
+### Rabbit MQ 흐름   
+
+publisher 가 브로커에 메시지 전송   
+
+broker 에서 바인딩 된 큐에 메시지 전송   
+
+consumer 는 큐에서 메시지를 읽음   
+
+메시지를 받으면 ack 를 다시 전송
+
+broker 는 ack 를 받으면 메시지 삭제   
+
+만약 ack 를 받지 못했다면 삭제, 재전송 등 설정에 따라 실행   
+
+
 
 
 
